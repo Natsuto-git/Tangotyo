@@ -207,15 +207,27 @@
       </p>
 
       <div class="panel" id="deckSection" style="margin-bottom: 18px;">
-        <div class="row" style="justify-content: space-between;">
-          <div class="row">
-            <span class="pill">保存名</span>
-            <input id="deckKey" type="text" value="english" style="width: 220px;" />
-            <span class="pill" id="deckHint">例：english / chinese / fr / guide-en</span>
+        <div class="row" style="justify-content: space-between; align-items: center;">
+          <div class="row" style="align-items: center; gap: 12px;">
+            <span class="pill">📚 デッキ選択</span>
+            <select id="deckSelect" style="min-width: 200px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(0,0,0,0.24); color: var(--text); font-size: 14px;">
+              <optgroup label="🌍 語学学習">
+                <option value="english">英語</option>
+                <option value="french">フランス語</option>
+                <option value="chinese">中国語</option>
+              </optgroup>
+              <optgroup label="🗾 全国通訳案内士">
+                <option value="guide-en">英語</option>
+                <option value="guide-japan">日本地理</option>
+                <option value="guide-history">日本歴史</option>
+                <option value="guide-general">一般常識</option>
+                <option value="guide-practice">通訳案内の実務</option>
+                <option value="guide-oral">口述</option>
+              </optgroup>
+            </select>
           </div>
-          <button type="button" id="applyDeckBtn">切り替え</button>
+          <span class="pill" id="deckStatusPill">0枚保存</span>
         </div>
-        <div class="footer">※保存名を変えると「入力の保存」「✓」「○×履歴」が分かれます。</div>
       </div>
 
       <div class="grid">
@@ -411,8 +423,8 @@
       const inputSection = document.getElementById("inputSection");
       const trainerSection = document.getElementById("trainerSection");
 
-      const deckKeyInput = el("deckKey");
-      const applyDeckBtn = el("applyDeckBtn");
+      const deckSelect = el("deckSelect");
+      const deckStatusPill = el("deckStatusPill");
       const input = el("input");
       const statusPill = el("statusPill");
       const progressPill = el("progressPill");
@@ -478,6 +490,16 @@
         retryWrongBtn.disabled = true;
         setDone(false);
         render();
+
+        // Update deck status pill
+        if (deckStatusPill) {
+          if (saved && saved.trim()) {
+            const tempCards = parseInput(saved);
+            deckStatusPill.textContent = `${tempCards.length}枚保存`;
+          } else {
+            deckStatusPill.textContent = `データなし`;
+          }
+        }
       }
 
       function applyMobileView() {
@@ -609,12 +631,14 @@
       }
 
       // events
-      if (applyDeckBtn && deckKeyInput) {
-        applyDeckBtn.addEventListener("click", () => applyDeck(deckKeyInput.value));
-        deckKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyDeck(deckKeyInput.value); });
+      if (deckSelect) {
+        deckSelect.addEventListener("change", () => {
+          console.log('Deck changed to:', deckSelect.value);
+          applyDeck(deckSelect.value);
+        });
         console.log('Deck switching events attached');
       } else {
-        console.error('Deck switching elements not found');
+        console.error('Deck select element not found');
       }
 
       if (mobileViewToggle) {
@@ -738,11 +762,18 @@
 
         // init: read ?k= and ?data= from URL
         const params = new URLSearchParams(location.search);
-        const initial = params.get("k") || (deckKeyInput ? deckKeyInput.value : null) || "default";
+        const initial = params.get("k") || (deckSelect ? deckSelect.value : null) || "english";
         const dataParam = params.get("data");
 
         console.log('Initializing with deck key:', initial);
-        if (deckKeyInput) deckKeyInput.value = initial;
+        if (deckSelect) {
+          // Set the select value if it matches an option
+          const options = Array.from(deckSelect.options);
+          const matchingOption = options.find(opt => opt.value === initial);
+          if (matchingOption) {
+            deckSelect.value = initial;
+          }
+        }
         applyDeck(initial);
 
         // Load data from URL parameter
