@@ -271,24 +271,57 @@
     </div>
 
     <script>
-      function safeGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
-      function safeSet(key, val) { try { localStorage.setItem(key, val); } catch (_) {} }
-      function safeRemove(key) { try { localStorage.removeItem(key); } catch (_) {} }
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('Tangotyo app initializing...');
+
+        // Storage functions with fallback
+        function safeGet(key) {
+          try {
+            return localStorage.getItem(key) || sessionStorage.getItem(key);
+          } catch (e) {
+            console.warn('Storage get failed:', e);
+            return null;
+          }
+        }
+        function safeSet(key, val) {
+          try {
+            localStorage.setItem(key, val);
+            console.log('Saved to localStorage:', key);
+          } catch (e) {
+            try {
+              sessionStorage.setItem(key, val);
+              console.log('Saved to sessionStorage:', key);
+            } catch (e2) {
+              console.warn('Storage set failed:', e2);
+            }
+          }
+        }
+        function safeRemove(key) {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            try {
+              sessionStorage.removeItem(key);
+            } catch (e2) {
+              console.warn('Storage remove failed:', e2);
+            }
+          }
+        }
 
       function normalizeCell(s) {
         return (s ?? "")
-          .replace(/<br\\s*\\/?>/gi, "\\n")
-          .replace(/\\s+/g, " ")
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/\s+/g, " ")
           .trim();
       }
       function makeId(word, meaning, ex) { return [word, meaning, ex || ""].join("||"); }
       function parseInput(text) {
         text = (text || "").replace(/｜/g, "|");
-        const lines = (text || "").split(/\\r?\\n/).map((l) => l.trim()).filter(Boolean);
+        const lines = (text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         const out = [];
         for (const line of lines) {
           if (line.includes("|")) {
-            const stripped = line.replace(/^\\|/, "").replace(/\\|$/, "");
+            const stripped = line.replace(/^\|/, "").replace(/\|$/, "");
             const parts = stripped.split("|").map((p) => p.trim());
             if (parts.length < 2) continue;
             if (parts.every((p) => /^-+$/.test(p) || /^:?-+:?$/.test(p))) continue;
@@ -327,7 +360,13 @@
           .replace(/'/g, "&#039;");
       }
 
-      const el = (id) => document.getElementById(id);
+      const el = (id) => {
+        const element = document.getElementById(id);
+        if (!element) {
+          console.error('Element not found:', id);
+        }
+        return element;
+      };
       const deckKeyInput = el("deckKey");
       const applyDeckBtn = el("applyDeckBtn");
       const input = el("input");
@@ -495,60 +534,127 @@
       }
 
       // events
-      applyDeckBtn.addEventListener("click", () => applyDeck(deckKeyInput.value));
-      deckKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyDeck(deckKeyInput.value); });
+      if (applyDeckBtn && deckKeyInput) {
+        applyDeckBtn.addEventListener("click", () => applyDeck(deckKeyInput.value));
+        deckKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyDeck(deckKeyInput.value); });
+        console.log('Deck switching events attached');
+      } else {
+        console.error('Deck switching elements not found');
+      }
 
-      loadBtn.addEventListener("click", () => {
-        cards = parseInput(input.value);
-        // restore marks for this deck
-        marked = new Set();
-        const savedMarks = safeGet(MARKS_KEY);
-        if (savedMarks) { try { marked = new Set(JSON.parse(savedMarks) || []); } catch (_) {} }
-        rebuildActiveAll();
-        resetProgress();
-        render();
-        statusPill.textContent = `${activeCount()}枚`;
+      if (loadBtn && saveBtn && clearSavedBtn) {
+        loadBtn.addEventListener("click", () => {
+          console.log('Load button clicked');
+          cards = parseInput(input.value);
+          console.log('Parsed cards:', cards.length);
+          // restore marks for this deck
+          marked = new Set();
+          const savedMarks = safeGet(MARKS_KEY);
+          if (savedMarks) { try { marked = new Set(JSON.parse(savedMarks) || []); } catch (e) { console.warn('Failed to parse marks:', e); } }
+          rebuildActiveAll();
+          resetProgress();
+          render();
+          statusPill.textContent = `${activeCount()}枚`;
+        });
+        saveBtn.addEventListener("click", () => {
+          console.log('Save button clicked');
+          safeSet(STORAGE_KEY, input.value || "");
+        });
+        clearSavedBtn.addEventListener("click", () => {
+          console.log('Clear saved button clicked');
+          safeRemove(STORAGE_KEY);
+        });
+      }
+
+      if (backBox && correctBtn && wrongBtn && markBtn) {
+        backBox.addEventListener("click", () => {
+          console.log('Back box clicked');
+          if (!cards.length) return;
+          revealed = true;
+          render();
+        });
+        correctBtn.addEventListener("click", () => {
+          console.log('Correct button clicked');
+          markResult(true);
+        });
+        wrongBtn.addEventListener("click", () => {
+          console.log('Wrong button clicked');
+          markResult(false);
+        });
+        markBtn.addEventListener("click", () => {
+          console.log('Mark button clicked');
+          toggleMark();
+        });
+      }
+
+      if (restartBtn && retryWrongBtn && shuffleBtn) {
+        restartBtn.addEventListener("click", () => {
+          console.log('Restart button clicked');
+          if (!cards.length) return;
+          rebuildActiveAll();
+          resetProgress();
+          render();
+        });
+        retryWrongBtn.addEventListener("click", () => {
+          console.log('Retry wrong button clicked');
+          if (!cards.length) return;
+          if (!wrong.size) return;
+          rebuildActiveWrongOnly();
+          pos = 0;
+          revealed = false;
+          render();
+        });
+        shuffleBtn.addEventListener("click", () => {
+          console.log('Shuffle button clicked');
+          if (!cards.length) return;
+          shuffleInPlace(cards);
+          rebuildActiveAll();
+          resetProgress();
+          render();
+        });
+      }
+
+      if (listBtn && listCloseBtn && listModal && listToggleWrongBtn) {
+        listBtn.addEventListener("click", () => {
+          console.log('List button clicked');
+          openList();
+        });
+        listCloseBtn.addEventListener("click", () => {
+          console.log('List close button clicked');
+          closeList();
+        });
+        listModal.addEventListener("click", (e) => {
+          if (e.target === listModal) {
+            console.log('List modal background clicked');
+            closeList();
+          }
+        });
+        listToggleWrongBtn.addEventListener("click", () => {
+          console.log('List toggle wrong button clicked');
+          listWrongOnly = !listWrongOnly;
+          renderList();
+        });
+      }
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
+        console.log('Key pressed:', e.key);
+        if (e.key === ' ') { e.preventDefault(); revealed = true; render(); }
+        if (e.key === 'ArrowLeft') { /* no-op */ }
+        if (e.key === 'o' || e.key === 'O') { if (correctBtn) correctBtn.click(); }
+        if (e.key === 'x' || e.key === 'X') { if (wrongBtn) wrongBtn.click(); }
+        if (e.key === 'm' || e.key === 'M') { if (markBtn) markBtn.click(); }
       });
-      saveBtn.addEventListener("click", () => safeSet(STORAGE_KEY, input.value || ""));
-      clearSavedBtn.addEventListener("click", () => safeRemove(STORAGE_KEY));
 
-      backBox.addEventListener("click", () => { if (!cards.length) return; revealed = true; render(); });
-      correctBtn.addEventListener("click", () => markResult(true));
-      wrongBtn.addEventListener("click", () => markResult(false));
-      markBtn.addEventListener("click", toggleMark);
-
-      restartBtn.addEventListener("click", () => {
-        if (!cards.length) return;
-        rebuildActiveAll();
-        resetProgress();
-        render();
+        // init: read ?k= from URL
+        const params = new URLSearchParams(location.search);
+        const initial = params.get("k") || (deckKeyInput ? deckKeyInput.value : null) || "default";
+        console.log('Initializing with deck key:', initial);
+        if (deckKeyInput) deckKeyInput.value = initial;
+        applyDeck(initial);
+        console.log('Tangotyo app initialized successfully');
       });
-      retryWrongBtn.addEventListener("click", () => {
-        if (!cards.length) return;
-        if (!wrong.size) return;
-        rebuildActiveWrongOnly();
-        pos = 0;
-        revealed = false;
-        render();
-      });
-      shuffleBtn.addEventListener("click", () => {
-        if (!cards.length) return;
-        shuffleInPlace(cards);
-        rebuildActiveAll();
-        resetProgress();
-        render();
-      });
-
-      listBtn.addEventListener("click", openList);
-      listCloseBtn.addEventListener("click", closeList);
-      listModal.addEventListener("click", (e) => { if (e.target === listModal) closeList(); });
-      listToggleWrongBtn.addEventListener("click", () => { listWrongOnly = !listWrongOnly; renderList(); });
-
-      // init: read ?k= from URL
-      const params = new URLSearchParams(location.search);
-      const initial = params.get("k") || deckKeyInput.value || "default";
-      deckKeyInput.value = initial;
-      applyDeck(initial);
     </script>
   </body>
 </html>
