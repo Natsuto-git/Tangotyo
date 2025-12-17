@@ -186,16 +186,20 @@
               <button type="button" id="loadBtn">Load</button>
               <button type="button" id="saveBtn" title="今の入力内容を保存">Save</button>
               <button type="button" id="copyBtn" title="クリップボードにコピー">📋 Copy</button>
+              <button type="button" id="shareBtn" title="共有リンクを作成">🔗 Share</button>
               <button type="button" id="clearSavedBtn" title="保存データを消す">Clear saved</button>
             </div>
             <span class="pill" id="statusPill">0枚</span>
           </div>
-          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:&#10;| 単語 | 意味 | 例文 |&#10;|---|---|---|&#10;| hello | こんにちは | Hello, nice to meet you. |&#10;&#10;※ スマホの場合は「📋 Copy」ボタンでクリップボードにコピーできます
+          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:&#10;| 単語 | 意味 | 例文 |&#10;|---|---|---|&#10;| hello | こんにちは | Hello, nice to meet you. |&#10;&#10;※ Obsidianからデータを入力する場合は「🔗 Share」で共有リンクを作成し、Obsidianに貼り付けてアクセスしてください
 | 単語 | 意味 | 例文 |
 |---|---|---|
 | hello | こんにちは | Hello, nice to meet you. |
 "></textarea>
           <div class="footer">パース対象は <b>最初の3列</b>（単語 / 意味 / 例文）です。</div>
+          <div class="banner" style="margin-top: 8px; background: rgba(122, 162, 255, 0.15);">
+            <b>Obsidian連携:</b> マークダウンデータを入力したら「🔗 Share」をクリックして共有リンクを作成し、Obsidianに貼り付けてアクセスしてください。
+          </div>
         </div>
 
         <div class="card">
@@ -384,6 +388,7 @@
       const loadBtn = el("loadBtn");
       const saveBtn = el("saveBtn");
       const copyBtn = el("copyBtn");
+      const shareBtn = el("shareBtn");
       const clearSavedBtn = el("clearSavedBtn");
       const modeSelect = el("modeSelect");
       const shuffleBtn = el("shuffleBtn");
@@ -597,6 +602,42 @@
             alert('クリップボードコピーに対応していません。下のテキストを長押ししてコピーしてください:\n\n' + text.substring(0, 200) + (text.length > 200 ? '...' : ''));
           }
         });
+
+        shareBtn.addEventListener("click", () => {
+          console.log('Share button clicked');
+          const text = input.value || '';
+          if (!text.trim()) {
+            alert('共有するデータがありません');
+            return;
+          }
+
+          const currentDeck = deckKeyInput ? deckKeyInput.value : 'default';
+          const encodedData = encodeURIComponent(text);
+          const shareUrl = `${window.location.origin}${window.location.pathname}?k=${encodeURIComponent(currentDeck)}&data=${encodedData}`;
+
+          try {
+            // Modern share API (モバイル向け)
+            if (navigator.share) {
+              navigator.share({
+                title: '単語帳データ',
+                text: '単語帳アプリで学習するデータ',
+                url: shareUrl
+              });
+            } else {
+              // Fallback: copy URL to clipboard
+              if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                  alert('共有リンクをクリップボードにコピーしました！\n\n' + shareUrl);
+                });
+              } else {
+                alert('共有リンク:\n\n' + shareUrl + '\n\nこのURLをコピーして共有してください。');
+              }
+            }
+          } catch (err) {
+            console.warn('Share failed:', err);
+            alert('共有リンク:\n\n' + shareUrl + '\n\nこのURLをコピーして共有してください。');
+          }
+        });
       }
 
       if (backBox && correctBtn && wrongBtn && markBtn) {
@@ -680,13 +721,39 @@
         if (e.key === 'm' || e.key === 'M') { if (markBtn) markBtn.click(); }
       });
 
-        // init: read ?k= from URL
+        // init: read ?k= and ?data= from URL
         const params = new URLSearchParams(location.search);
         const initial = params.get("k") || (deckKeyInput ? deckKeyInput.value : null) || "default";
+        const dataParam = params.get("data");
+
         console.log('Initializing with deck key:', initial);
         if (deckKeyInput) deckKeyInput.value = initial;
         applyDeck(initial);
+
+        // Load data from URL parameter
+        if (dataParam && input) {
+          try {
+            const decodedData = decodeURIComponent(dataParam);
+            console.log('Loading data from URL:', decodedData.substring(0, 100) + '...');
+            input.value = decodedData;
+            // Auto-load if data is provided
+            setTimeout(() => {
+              if (loadBtn) loadBtn.click();
+            }, 100);
+          } catch (e) {
+            console.warn('Failed to decode URL data:', e);
+          }
+        }
+
         console.log('Tangotyo app initialized successfully');
+
+        // Helper function for creating share URLs (available in console)
+        window.createShareUrl = function(markdownText, deckName = 'english') {
+          const encodedData = encodeURIComponent(markdownText);
+          return `${window.location.origin}${window.location.pathname}?k=${encodeURIComponent(deckName)}&data=${encodedData}`;
+        };
+
+        console.log('💡 Tip: Use createShareUrl(markdownText, deckName) in console to create share URLs');
       });
     </script>
   </body>
