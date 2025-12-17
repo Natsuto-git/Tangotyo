@@ -185,11 +185,12 @@
             <div class="row">
               <button type="button" id="loadBtn">Load</button>
               <button type="button" id="saveBtn" title="今の入力内容を保存">Save</button>
+              <button type="button" id="copyBtn" title="クリップボードにコピー">📋 Copy</button>
               <button type="button" id="clearSavedBtn" title="保存データを消す">Clear saved</button>
             </div>
             <span class="pill" id="statusPill">0枚</span>
           </div>
-          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:
+          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:&#10;| 単語 | 意味 | 例文 |&#10;|---|---|---|&#10;| hello | こんにちは | Hello, nice to meet you. |&#10;&#10;※ スマホの場合は「📋 Copy」ボタンでクリップボードにコピーできます
 | 単語 | 意味 | 例文 |
 |---|---|---|
 | hello | こんにちは | Hello, nice to meet you. |
@@ -382,6 +383,7 @@
 
       const loadBtn = el("loadBtn");
       const saveBtn = el("saveBtn");
+      const copyBtn = el("copyBtn");
       const clearSavedBtn = el("clearSavedBtn");
       const modeSelect = el("modeSelect");
       const shuffleBtn = el("shuffleBtn");
@@ -563,6 +565,37 @@
         clearSavedBtn.addEventListener("click", () => {
           console.log('Clear saved button clicked');
           safeRemove(STORAGE_KEY);
+        });
+
+        copyBtn.addEventListener("click", async () => {
+          console.log('Copy button clicked');
+          const text = input.value || '';
+          if (!text.trim()) {
+            alert('コピーするデータがありません');
+            return;
+          }
+
+          try {
+            // Modern clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(text);
+              alert('クリップボードにコピーしました！');
+            } else {
+              // Fallback for mobile browsers
+              input.select();
+              input.setSelectionRange(0, 99999); // For mobile
+              if (document.execCommand('copy')) {
+                alert('クリップボードにコピーしました！');
+              } else {
+                // Last resort: show text for manual copy
+                alert('クリップボードコピーに対応していません。下のテキストを長押ししてコピーしてください:\n\n' + text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+              }
+            }
+          } catch (err) {
+            console.warn('Clipboard copy failed:', err);
+            // Fallback: show text for manual copy
+            alert('クリップボードコピーに対応していません。下のテキストを長押ししてコピーしてください:\n\n' + text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+          }
         });
       }
 
