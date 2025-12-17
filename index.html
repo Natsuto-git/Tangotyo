@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>単語帳アプリ（Web版）</title>
+    <style>
+      :root {
+        --bg: #0b0f19;
+        --panel: #121a2a;
+        --text: #e8eefc;
+        --muted: #a9b4d0;
+        --border: rgba(232, 238, 252, 0.12);
+        --accent: #7aa2ff;
+        --bad: #ff6b6b;
+        --good: #51cf66;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", Segoe UI, Roboto, Helvetica, Arial;
+        background: radial-gradient(1200px 700px at 10% 10%, rgba(122, 162, 255, 0.25), transparent 55%),
+                    radial-gradient(1000px 600px at 90% 20%, rgba(81, 207, 102, 0.18), transparent 60%),
+                    var(--bg);
+        color: var(--text);
+      }
+      a { color: var(--accent); }
+      .wrap { max-width: 1240px; margin: 0 auto; padding: 20px; }
+      @media (min-width: 900px) { .wrap { padding: 36px; } }
+      @media (min-width: 1200px) { .wrap { padding: 44px; } }
+
+      h1 { font-size: 22px; margin: 0 0 10px; }
+      @media (min-width: 900px) { h1 { font-size: 28px; margin: 0 0 14px; } }
+      .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; line-height: 1.6; }
+
+      .grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+      @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+      .card, .panel {
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+      }
+      @media (min-width: 900px) { .card, .panel { padding: 18px; } }
+
+      textarea {
+        width: 100%;
+        min-height: 220px;
+        resize: vertical;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.22);
+        color: var(--text);
+        padding: 12px;
+        line-height: 1.55;
+        font-size: 15px;
+      }
+      @media (min-width: 900px) { textarea { min-height: 280px; } }
+
+      .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      button, select, input[type="text"] {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.24);
+        color: var(--text);
+        padding: 12px 14px;
+        font-weight: 700;
+      }
+      button { cursor: pointer; }
+      button:hover { border-color: rgba(122,162,255,0.6); }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .trainer { display: grid; gap: 12px; }
+      .face {
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 16px;
+        background: rgba(0,0,0,0.2);
+      }
+      @media (min-width: 900px) { .face { padding: 18px; } }
+      .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+      .big { font-size: 22px; font-weight: 900; letter-spacing: 0.2px; white-space: pre-wrap; }
+      @media (min-width: 900px) { .big { font-size: 26px; } }
+      .small { font-size: 16px; color: var(--text); opacity: 0.95; white-space: pre-wrap; }
+      .example { margin-top: 8px; color: var(--muted); white-space: pre-wrap; }
+      .hint { font-size: 12px; color: var(--muted); }
+
+      .tap { user-select: none; -webkit-user-select: none; }
+      .tap:hover { border-color: rgba(122,162,255,0.6); }
+
+      .actions { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 12px; }
+      .judge {
+        width: 84px;
+        height: 64px;
+        border-radius: 16px;
+        font-size: 28px;
+        font-weight: 900;
+      }
+      .judge.good { border-color: rgba(81,207,102,0.45); background: rgba(81,207,102,0.10); }
+      .judge.bad { border-color: rgba(255,107,107,0.45); background: rgba(255,107,107,0.10); }
+      .markBtn { min-width: 56px; height: 46px; border-radius: 12px; font-size: 18px; font-weight: 900; }
+
+      .footer { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .banner {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(122,162,255,0.10);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.5;
+        display: none;
+      }
+
+      /* list modal */
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+      }
+      .modal .modalCard {
+        width: min(980px, 100%);
+        max-height: min(82vh, 900px);
+        overflow: auto;
+        background: #0f1626;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 20px 70px rgba(0,0,0,0.55);
+      }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; vertical-align: top; }
+      th { color: var(--muted); font-weight: 800; }
+      .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); display: inline-block; }
+      .tag.good { color: var(--good); border-color: rgba(81,207,102,0.35); }
+      .tag.bad { color: var(--bad); border-color: rgba(255,107,107,0.35); }
+
+      /* iOS/Safari click safety */
+      button { touch-action: manipulation; pointer-events: auto; }
+      code { color: rgba(232,238,252,0.95); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>単語帳アプリ（Web版）</h1>
+      <p class="sub">
+        Obsidianの表（<code>| 単語 | 意味 | 例文 |</code>）をコピーして貼り付け → <b>Load</b>。
+        端末ごとに保存されます（ブラウザのlocalStorage）。
+      </p>
+
+      <div class="panel" style="margin-bottom: 18px;">
+        <div class="row" style="justify-content: space-between;">
+          <div class="row">
+            <span class="pill">保存名</span>
+            <input id="deckKey" type="text" value="english" style="width: 220px;" />
+            <span class="pill" id="deckHint">例：english / chinese / fr / guide-en</span>
+          </div>
+          <button type="button" id="applyDeckBtn">切り替え</button>
+        </div>
+        <div class="footer">※保存名を変えると「入力の保存」「✓」「○×履歴」が分かれます。</div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+            <div class="row">
+              <button type="button" id="loadBtn">Load</button>
+              <button type="button" id="saveBtn" title="今の入力内容を保存">Save</button>
+              <button type="button" id="clearSavedBtn" title="保存データを消す">Clear saved</button>
+            </div>
+            <span class="pill" id="statusPill">0枚</span>
+          </div>
+          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:
+| 単語 | 意味 | 例文 |
+|---|---|---|
+| hello | こんにちは | Hello, nice to meet you. |
+"></textarea>
+          <div class="footer">パース対象は <b>最初の3列</b>（単語 / 意味 / 例文）です。</div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+            <div class="row">
+              <button type="button" id="listBtn">単語一覧</button>
+              <button type="button" id="restartBtn">最初から</button>
+              <button type="button" id="retryWrongBtn">ミスだけもう一回</button>
+            </div>
+            <div class="row">
+              <select id="modeSelect" title="出題方向">
+                <option value="wordToMeaning">単語 → 意味</option>
+                <option value="meaningToWord">意味 → 単語</option>
+              </select>
+              <button type="button" id="shuffleBtn">Shuffle</button>
+            </div>
+          </div>
+
+          <div class="trainer">
+            <div class="face">
+              <div class="label">表（問題）</div>
+              <div class="big" id="front">Load して開始</div>
+              <div class="hint" id="frontHint"></div>
+            </div>
+
+            <div class="face tap" id="backBox" role="button" aria-label="答えを表示">
+              <div class="label">裏（答え）</div>
+              <div class="small" id="back">（ここをタップで答え表示）</div>
+              <div class="example" id="example"></div>
+            </div>
+          </div>
+
+          <div class="row" style="justify-content: space-between; margin-top: 12px;">
+            <span class="pill" id="progressPill">0/0</span>
+            <span class="pill" id="summaryPill">○0 / ×0 / ✓0</span>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="correctBtn" class="judge good">○</button>
+            <button type="button" id="wrongBtn" class="judge bad">×</button>
+            <button type="button" id="markBtn" class="markBtn">□</button>
+          </div>
+
+          <div id="doneBanner" class="banner">完了！</div>
+          <div class="footer">○/×で次へ。答え枠タップで答え表示。最後で完了表示。</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="listModal" class="modal">
+      <div class="modalCard">
+        <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+          <div class="row">
+            <span class="pill">単語一覧</span>
+            <button type="button" id="listToggleWrongBtn">ミスのみ: OFF</button>
+          </div>
+          <button type="button" id="listCloseBtn">閉じる</button>
+        </div>
+        <div class="footer" style="margin-top:0;">全単語を確認できます（ミスのみ表示も可能）。</div>
+        <div style="height:10px"></div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px;">状態</th>
+              <th style="width:70px;">✓</th>
+              <th>単語</th>
+              <th>意味</th>
+              <th>例文</th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function safeGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
+      function safeSet(key, val) { try { localStorage.setItem(key, val); } catch (_) {} }
+      function safeRemove(key) { try { localStorage.removeItem(key); } catch (_) {} }
+
+      function normalizeCell(s) {
+        return (s ?? "")
+          .replace(/<br\\s*\\/?>/gi, "\\n")
+          .replace(/\\s+/g, " ")
+          .trim();
+      }
+      function makeId(word, meaning, ex) { return [word, meaning, ex || ""].join("||"); }
+      function parseInput(text) {
+        text = (text || "").replace(/｜/g, "|");
+        const lines = (text || "").split(/\\r?\\n/).map((l) => l.trim()).filter(Boolean);
+        const out = [];
+        for (const line of lines) {
+          if (line.includes("|")) {
+            const stripped = line.replace(/^\\|/, "").replace(/\\|$/, "");
+            const parts = stripped.split("|").map((p) => p.trim());
+            if (parts.length < 2) continue;
+            if (parts.every((p) => /^-+$/.test(p) || /^:?-+:?$/.test(p))) continue;
+            if (parts[0] === "単語" && (parts[1] === "意味" || parts[1] === "意味（日本語）")) continue;
+            const [w, m, ex] = parts;
+            const word = normalizeCell(w);
+            const meaning = normalizeCell(m);
+            const exampleText = normalizeCell(ex);
+            if (!word || !meaning) continue;
+            out.push({ word, meaning, example: exampleText, id: makeId(word, meaning, exampleText) });
+            continue;
+          }
+          if (line.includes("\\t")) {
+            const [w, m, ex] = line.split("\\t").map((p) => p.trim());
+            const word = normalizeCell(w);
+            const meaning = normalizeCell(m);
+            const exampleText = normalizeCell(ex);
+            if (!word || !meaning) continue;
+            out.push({ word, meaning, example: exampleText, id: makeId(word, meaning, exampleText) });
+          }
+        }
+        return out;
+      }
+      function shuffleInPlace(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      const el = (id) => document.getElementById(id);
+      const deckKeyInput = el("deckKey");
+      const applyDeckBtn = el("applyDeckBtn");
+      const input = el("input");
+      const statusPill = el("statusPill");
+      const progressPill = el("progressPill");
+      const summaryPill = el("summaryPill");
+      const doneBanner = el("doneBanner");
+
+      const front = el("front");
+      const back = el("back");
+      const example = el("example");
+      const backBox = el("backBox");
+
+      const loadBtn = el("loadBtn");
+      const saveBtn = el("saveBtn");
+      const clearSavedBtn = el("clearSavedBtn");
+      const modeSelect = el("modeSelect");
+      const shuffleBtn = el("shuffleBtn");
+
+      const correctBtn = el("correctBtn");
+      const wrongBtn = el("wrongBtn");
+      const markBtn = el("markBtn");
+
+      const restartBtn = el("restartBtn");
+      const retryWrongBtn = el("retryWrongBtn");
+      const listBtn = el("listBtn");
+
+      const listModal = el("listModal");
+      const listCloseBtn = el("listCloseBtn");
+      const listToggleWrongBtn = el("listToggleWrongBtn");
+      const listBody = el("listBody");
+
+      let STORAGE_KEY = "tangotyo:english:input";
+      let MARKS_KEY = "tangotyo:english:marks";
+
+      let cards = [];
+      let active = [];
+      let pos = 0;
+      let revealed = false;
+      let correct = new Set();
+      let wrong = new Set();
+      let marked = new Set();
+      let listWrongOnly = false;
+
+      function applyDeck(key) {
+        const k = (key || "").trim() || "default";
+        STORAGE_KEY = `tangotyo:${k}:input`;
+        MARKS_KEY = `tangotyo:${k}:marks`;
+        const saved = safeGet(STORAGE_KEY);
+        input.value = saved || "";
+        marked = new Set();
+        const savedMarks = safeGet(MARKS_KEY);
+        if (savedMarks) {
+          try { marked = new Set(JSON.parse(savedMarks) || []); } catch (_) {}
+        }
+        cards = [];
+        active = [];
+        pos = 0;
+        revealed = false;
+        correct = new Set();
+        wrong = new Set();
+        listWrongOnly = false;
+        retryWrongBtn.disabled = true;
+        setDone(false);
+        render();
+      }
+
+      function activeCount() { return active.length; }
+      function currentCard() {
+        const i = active[pos];
+        if (i === undefined) return null;
+        return cards[i] || null;
+      }
+      function updateTop() {
+        statusPill.textContent = `${activeCount()}枚`;
+        const total = activeCount();
+        progressPill.textContent = total ? `${pos + 1}/${total}` : "0/0";
+        summaryPill.textContent = `○${correct.size} / ×${wrong.size} / ✓${marked.size}`;
+        retryWrongBtn.disabled = wrong.size === 0;
+      }
+      function setDone(isDone) {
+        if (isDone) {
+          doneBanner.style.display = "block";
+          doneBanner.textContent = `完了！（× ${wrong.size}）`;
+        } else {
+          doneBanner.style.display = "none";
+        }
+      }
+      function render() {
+        updateTop();
+        const c = currentCard();
+        if (!c) {
+          front.textContent = "データなし";
+          back.textContent = "（ここをタップで答え表示）";
+          example.textContent = "";
+          setDone(false);
+          return;
+        }
+        const mode = modeSelect.value;
+        const frontText = mode === "meaningToWord" ? c.meaning : c.word;
+        const backText = mode === "meaningToWord" ? c.word : c.meaning;
+        front.textContent = frontText || "—";
+        if (revealed) {
+          back.textContent = backText || "—";
+          example.textContent = c.example ? `例文: ${c.example}` : "";
+        } else {
+          back.textContent = "（ここをタップで答え表示）";
+          example.textContent = "";
+        }
+        markBtn.textContent = marked.has(c.id) ? "✓" : "□";
+        setDone(false);
+      }
+
+      function rebuildActiveAll() { active = cards.map((_, i) => i); }
+      function rebuildActiveWrongOnly() {
+        const wrongIds = new Set(wrong);
+        active = cards.map((c, i) => [c, i]).filter(([c]) => wrongIds.has(c.id)).map(([, i]) => i);
+      }
+      function resetProgress() { pos = 0; revealed = false; correct = new Set(); wrong = new Set(); }
+      function goNextOrDone() {
+        if (pos >= active.length - 1) { setDone(true); return; }
+        pos += 1;
+        revealed = false;
+        render();
+      }
+      function markResult(isCorrect) {
+        const c = currentCard();
+        if (!c) return;
+        if (isCorrect) { correct.add(c.id); wrong.delete(c.id); }
+        else { wrong.add(c.id); correct.delete(c.id); }
+        goNextOrDone();
+      }
+      function toggleMark() {
+        const c = currentCard();
+        if (!c) return;
+        if (marked.has(c.id)) marked.delete(c.id);
+        else marked.add(c.id);
+        safeSet(MARKS_KEY, JSON.stringify(Array.from(marked)));
+        render();
+      }
+
+      function openList() {
+        if (!cards.length) return;
+        listModal.style.display = "flex";
+        renderList();
+      }
+      function closeList() { listModal.style.display = "none"; }
+      function renderList() {
+        listBody.innerHTML = "";
+        const rows = listWrongOnly ? cards.filter((c) => wrong.has(c.id)) : cards;
+        for (const c of rows) {
+          const tr = document.createElement("tr");
+          const state = correct.has(c.id) ? '<span class="tag good">○</span>' : wrong.has(c.id) ? '<span class="tag bad">×</span>' : '<span class="tag">-</span>';
+          const chk = marked.has(c.id) ? '<span class="tag good">✓</span>' : '<span class="tag">-</span>';
+          tr.innerHTML = `
+            <td>${state}</td>
+            <td>${chk}</td>
+            <td>${escapeHtml(c.word)}</td>
+            <td>${escapeHtml(c.meaning)}</td>
+            <td>${escapeHtml(c.example || "")}</td>
+          `;
+          listBody.appendChild(tr);
+        }
+        listToggleWrongBtn.textContent = `ミスのみ: ${listWrongOnly ? "ON" : "OFF"}`;
+      }
+
+      // events
+      applyDeckBtn.addEventListener("click", () => applyDeck(deckKeyInput.value));
+      deckKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyDeck(deckKeyInput.value); });
+
+      loadBtn.addEventListener("click", () => {
+        cards = parseInput(input.value);
+        // restore marks for this deck
+        marked = new Set();
+        const savedMarks = safeGet(MARKS_KEY);
+        if (savedMarks) { try { marked = new Set(JSON.parse(savedMarks) || []); } catch (_) {} }
+        rebuildActiveAll();
+        resetProgress();
+        render();
+        statusPill.textContent = `${activeCount()}枚`;
+      });
+      saveBtn.addEventListener("click", () => safeSet(STORAGE_KEY, input.value || ""));
+      clearSavedBtn.addEventListener("click", () => safeRemove(STORAGE_KEY));
+
+      backBox.addEventListener("click", () => { if (!cards.length) return; revealed = true; render(); });
+      correctBtn.addEventListener("click", () => markResult(true));
+      wrongBtn.addEventListener("click", () => markResult(false));
+      markBtn.addEventListener("click", toggleMark);
+
+      restartBtn.addEventListener("click", () => {
+        if (!cards.length) return;
+        rebuildActiveAll();
+        resetProgress();
+        render();
+      });
+      retryWrongBtn.addEventListener("click", () => {
+        if (!cards.length) return;
+        if (!wrong.size) return;
+        rebuildActiveWrongOnly();
+        pos = 0;
+        revealed = false;
+        render();
+      });
+      shuffleBtn.addEventListener("click", () => {
+        if (!cards.length) return;
+        shuffleInPlace(cards);
+        rebuildActiveAll();
+        resetProgress();
+        render();
+      });
+
+      listBtn.addEventListener("click", openList);
+      listCloseBtn.addEventListener("click", closeList);
+      listModal.addEventListener("click", (e) => { if (e.target === listModal) closeList(); });
+      listToggleWrongBtn.addEventListener("click", () => { listWrongOnly = !listWrongOnly; renderList(); });
+
+      // init: read ?k= from URL
+      const params = new URLSearchParams(location.search);
+      const initial = params.get("k") || deckKeyInput.value || "default";
+      deckKeyInput.value = initial;
+      applyDeck(initial);
+    </script>
+  </body>
+</html>
+
+
