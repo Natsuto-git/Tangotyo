@@ -500,6 +500,16 @@
             deckStatusPill.textContent = `データなし`;
           }
         }
+
+        // Auto-load saved data
+        if (saved && saved.trim()) {
+          cards = parseInput(saved);
+          rebuildActiveAll();
+          resetProgress();
+          render();
+          statusPill.textContent = `${activeCount()}枚`;
+          console.log('Auto-loaded saved data:', cards.length, 'cards');
+        }
       }
 
       function applyMobileView() {
