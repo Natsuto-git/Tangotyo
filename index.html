@@ -157,17 +157,56 @@
       /* iOS/Safari click safety */
       button { touch-action: manipulation; pointer-events: auto; }
       code { color: rgba(232,238,252,0.95); }
+
+      /* Header & mobile layout */
+      .headerRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .mobileViewToggle {
+        display: none;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.4);
+        color: var(--text);
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .mobileViewToggle:active {
+        background: rgba(0, 0, 0, 0.6);
+      }
+      @media (max-width: 899px) {
+        .wrap { padding: 20px; }
+        .headerRow h1 { font-size: 20px; }
+        .mobileViewToggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+        /* モバイルでは「保存名」エリアはデフォルト非表示（入力ビューでのみ使う） */
+        #deckSection {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>単語帳アプリ（Web版）</h1>
+      <div class="headerRow">
+        <h1>単語帳アプリ（Web版）</h1>
+        <button type="button" id="mobileViewToggle" class="mobileViewToggle" aria-label="表示切り替え">
+          ☰ 単語帳
+        </button>
+      </div>
       <p class="sub">
         Obsidianの表（<code>| 単語 | 意味 | 例文 |</code>）をコピーして貼り付け → <b>Load</b>。
         端末ごとに保存されます（ブラウザのlocalStorage）。
       </p>
 
-      <div class="panel" style="margin-bottom: 18px;">
+      <div class="panel" id="deckSection" style="margin-bottom: 18px;">
         <div class="row" style="justify-content: space-between;">
           <div class="row">
             <span class="pill">保存名</span>
@@ -180,29 +219,24 @@
       </div>
 
       <div class="grid">
-        <div class="panel">
+        <div class="panel" id="inputSection">
           <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
             <div class="row">
               <button type="button" id="loadBtn">Load</button>
               <button type="button" id="saveBtn" title="今の入力内容を保存">Save</button>
-              <button type="button" id="copyBtn" title="クリップボードにコピー">📋 Copy</button>
-              <button type="button" id="shareBtn" title="共有リンクを作成">🔗 Share</button>
               <button type="button" id="clearSavedBtn" title="保存データを消す">Clear saved</button>
             </div>
             <span class="pill" id="statusPill">0枚</span>
           </div>
-          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:&#10;| 単語 | 意味 | 例文 |&#10;|---|---|---|&#10;| hello | こんにちは | Hello, nice to meet you. |&#10;&#10;※ Obsidianからデータを入力する場合は「🔗 Share」で共有リンクを作成し、Obsidianに貼り付けてアクセスしてください
+          <textarea id="input" spellcheck="false" placeholder="例（Markdown表）:
 | 単語 | 意味 | 例文 |
 |---|---|---|
 | hello | こんにちは | Hello, nice to meet you. |
 "></textarea>
           <div class="footer">パース対象は <b>最初の3列</b>（単語 / 意味 / 例文）です。</div>
-          <div class="banner" style="margin-top: 8px; background: rgba(122, 162, 255, 0.15);">
-            <b>Obsidian連携:</b> マークダウンデータを入力したら「🔗 Share」をクリックして共有リンクを作成し、Obsidianに貼り付けてアクセスしてください。
-          </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="trainerSection">
           <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
             <div class="row">
               <button type="button" id="listBtn">単語一覧</button>
@@ -372,6 +406,11 @@
         }
         return element;
       };
+      const mobileViewToggle = el("mobileViewToggle");
+      const deckSection = document.getElementById("deckSection");
+      const inputSection = document.getElementById("inputSection");
+      const trainerSection = document.getElementById("trainerSection");
+
       const deckKeyInput = el("deckKey");
       const applyDeckBtn = el("applyDeckBtn");
       const input = el("input");
@@ -387,8 +426,6 @@
 
       const loadBtn = el("loadBtn");
       const saveBtn = el("saveBtn");
-      const copyBtn = el("copyBtn");
-      const shareBtn = el("shareBtn");
       const clearSavedBtn = el("clearSavedBtn");
       const modeSelect = el("modeSelect");
       const shuffleBtn = el("shuffleBtn");
@@ -418,6 +455,8 @@
       let marked = new Set();
       let listWrongOnly = false;
 
+      let currentView = "input";
+
       function applyDeck(key) {
         const k = (key || "").trim() || "default";
         STORAGE_KEY = `tangotyo:${k}:input`;
@@ -439,6 +478,35 @@
         retryWrongBtn.disabled = true;
         setDone(false);
         render();
+      }
+
+      function applyMobileView() {
+        const isMobile = window.matchMedia("(max-width: 899px)").matches;
+        if (!deckSection || !inputSection || !trainerSection) return;
+
+        if (!isMobile) {
+          deckSection.style.display = "";
+          inputSection.style.display = "";
+          trainerSection.style.display = "";
+          if (mobileViewToggle) mobileViewToggle.style.display = "none";
+          return;
+        }
+
+        if (mobileViewToggle) {
+          mobileViewToggle.style.display = "inline-flex";
+        }
+
+        if (currentView === "input") {
+          deckSection.style.display = "block";
+          inputSection.style.display = "block";
+          trainerSection.style.display = "none";
+          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 単語帳";
+        } else {
+          deckSection.style.display = "none";
+          inputSection.style.display = "none";
+          trainerSection.style.display = "block";
+          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 入力";
+        }
       }
 
       function activeCount() { return active.length; }
@@ -549,6 +617,15 @@
         console.error('Deck switching elements not found');
       }
 
+      if (mobileViewToggle) {
+        mobileViewToggle.addEventListener("click", () => {
+          currentView = currentView === "input" ? "trainer" : "input";
+          applyMobileView();
+        });
+      }
+
+      window.addEventListener("resize", applyMobileView);
+
       if (loadBtn && saveBtn && clearSavedBtn) {
         loadBtn.addEventListener("click", () => {
           console.log('Load button clicked');
@@ -562,6 +639,11 @@
           resetProgress();
           render();
           statusPill.textContent = `${activeCount()}枚`;
+          // モバイルではLoad後に自動で単語帳ビューへ
+          if (window.matchMedia("(max-width: 899px)").matches) {
+            currentView = "trainer";
+            applyMobileView();
+          }
         });
         saveBtn.addEventListener("click", () => {
           console.log('Save button clicked');
@@ -570,73 +652,6 @@
         clearSavedBtn.addEventListener("click", () => {
           console.log('Clear saved button clicked');
           safeRemove(STORAGE_KEY);
-        });
-
-        copyBtn.addEventListener("click", async () => {
-          console.log('Copy button clicked');
-          const text = input.value || '';
-          if (!text.trim()) {
-            alert('コピーするデータがありません');
-            return;
-          }
-
-          try {
-            // Modern clipboard API
-            if (navigator.clipboard && window.isSecureContext) {
-              await navigator.clipboard.writeText(text);
-              alert('クリップボードにコピーしました！');
-            } else {
-              // Fallback for mobile browsers
-              input.select();
-              input.setSelectionRange(0, 99999); // For mobile
-              if (document.execCommand('copy')) {
-                alert('クリップボードにコピーしました！');
-              } else {
-                // Last resort: show text for manual copy
-                alert('クリップボードコピーに対応していません。下のテキストを長押ししてコピーしてください:\n\n' + text.substring(0, 200) + (text.length > 200 ? '...' : ''));
-              }
-            }
-          } catch (err) {
-            console.warn('Clipboard copy failed:', err);
-            // Fallback: show text for manual copy
-            alert('クリップボードコピーに対応していません。下のテキストを長押ししてコピーしてください:\n\n' + text.substring(0, 200) + (text.length > 200 ? '...' : ''));
-          }
-        });
-
-        shareBtn.addEventListener("click", () => {
-          console.log('Share button clicked');
-          const text = input.value || '';
-          if (!text.trim()) {
-            alert('共有するデータがありません');
-            return;
-          }
-
-          const currentDeck = deckKeyInput ? deckKeyInput.value : 'default';
-          const encodedData = encodeURIComponent(text);
-          const shareUrl = `${window.location.origin}${window.location.pathname}?k=${encodeURIComponent(currentDeck)}&data=${encodedData}`;
-
-          try {
-            // Modern share API (モバイル向け)
-            if (navigator.share) {
-              navigator.share({
-                title: '単語帳データ',
-                text: '単語帳アプリで学習するデータ',
-                url: shareUrl
-              });
-            } else {
-              // Fallback: copy URL to clipboard
-              if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                  alert('共有リンクをクリップボードにコピーしました！\n\n' + shareUrl);
-                });
-              } else {
-                alert('共有リンク:\n\n' + shareUrl + '\n\nこのURLをコピーして共有してください。');
-              }
-            }
-          } catch (err) {
-            console.warn('Share failed:', err);
-            alert('共有リンク:\n\n' + shareUrl + '\n\nこのURLをコピーして共有してください。');
-          }
         });
       }
 
@@ -746,6 +761,7 @@
         }
 
         console.log('Tangotyo app initialized successfully');
+        applyMobileView();
 
         // Helper function for creating share URLs (available in console)
         window.createShareUrl = function(markdownText, deckName = 'english') {
