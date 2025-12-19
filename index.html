@@ -34,8 +34,7 @@
       @media (min-width: 900px) { h1 { font-size: 28px; margin: 0 0 14px; } }
       .sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; line-height: 1.6; }
 
-      .grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-      @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 18px; max-width: 700px; margin: 0 auto; }
 
       .card, .panel {
         background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
@@ -158,37 +157,47 @@
       button { touch-action: manipulation; pointer-events: auto; }
       code { color: rgba(232,238,252,0.95); }
 
-      /* Header & mobile layout */
+      /* Header & view toggle */
       .headerRow {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+        max-width: 700px;
+        margin: 0 auto;
       }
       .mobileViewToggle {
-        display: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: rgba(0, 0, 0, 0.4);
         color: var(--text);
-        padding: 6px 10px;
-        font-size: 12px;
+        padding: 8px 14px;
+        font-size: 13px;
         cursor: pointer;
+      }
+      .mobileViewToggle:hover {
+        border-color: rgba(122,162,255,0.6);
       }
       .mobileViewToggle:active {
         background: rgba(0, 0, 0, 0.6);
       }
-      @media (max-width: 899px) {
-        .wrap { padding: 20px; }
-        .headerRow h1 { font-size: 20px; }
+      .sub {
+        max-width: 700px;
+        margin: 0 auto 18px;
+      }
+      #deckSection {
+        max-width: 700px;
+        margin: 0 auto 18px;
+      }
+      @media (max-width: 600px) {
+        .wrap { padding: 16px; }
+        .headerRow h1 { font-size: 18px; }
         .mobileViewToggle {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-        /* モバイルでは「保存名」エリアはデフォルト非表示（入力ビューでのみ使う） */
-        #deckSection {
-          display: none;
+          padding: 6px 10px;
+          font-size: 12px;
         }
       }
     </style>
@@ -513,31 +522,18 @@
       }
 
       function applyMobileView() {
-        const isMobile = window.matchMedia("(max-width: 899px)").matches;
         if (!deckSection || !inputSection || !trainerSection) return;
-
-        if (!isMobile) {
-          deckSection.style.display = "";
-          inputSection.style.display = "";
-          trainerSection.style.display = "";
-          if (mobileViewToggle) mobileViewToggle.style.display = "none";
-          return;
-        }
-
-        if (mobileViewToggle) {
-          mobileViewToggle.style.display = "inline-flex";
-        }
 
         if (currentView === "input") {
           deckSection.style.display = "block";
           inputSection.style.display = "block";
           trainerSection.style.display = "none";
-          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 単語帳";
+          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 単語帳へ";
         } else {
-          deckSection.style.display = "none";
+          deckSection.style.display = "block";
           inputSection.style.display = "none";
           trainerSection.style.display = "block";
-          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 入力";
+          if (mobileViewToggle) mobileViewToggle.textContent = "☰ 入力へ";
         }
       }
 
